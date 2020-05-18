@@ -1,144 +1,218 @@
-
-
 var GameState = {
-    preload: function(){
-        this.load.image('background', './assets/images/background.png');
-//        this.load.image('chicken', './assets/images/chicken.png');
-//        this.load.image('horse', './assets/images/horse.png');
-//        this.load.image('pig', './assets/images/pig.png');
-//        this.load.image('sheep', './assets/images/sheep3.png');
-        this.load.image('arrow', './assets/images/arrow.png');
-        
-        this.load.spritesheet('chicken', 'assets/images/chicken_spritesheet.png', 131, 200, 3);
-        this.load.spritesheet('horse', 'assets/images/horse_spritesheet.png', 212, 200, 3);
-        this.load.spritesheet('pig', 'assets/images/pig_spritesheet.png', 297, 200, 3);
-        this.load.spritesheet('sheep', 'assets/images/sheep_spritesheet.png', 244, 200, 3);
-        
-        this.load.audio('chickenSound', ['assets/audio/chicken.ogg', 'assets/audio/chicken.mp3']);
-        this.load.audio('horseSound', ['assets/audio/horse.ogg', 'assets/audio/horse.mp3']);
-        this.load.audio('pigSound', ['assets/audio/pig.ogg', 'assets/audio/pig.mp3']);
-        this.load.audio('sheepSound', ['assets/audio/sheep.ogg', 'assets/audio/sheep.mp3']);
-    },
-
-    create: function(){
-        
+    init: function(){
+      //adapt to screen size, fit all the game
         this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         this.scale.pageAlignHorizontally = true;
         this.scale.pageAlignVertically = true;
 
-        // this.scale.setScreenSize(true); 
+        this.game.physics.startSystem(Phaser.Physics.ARCADE);
+        this.game.physics.arcade.gravity.y = 1000
 
-        this.background = this.game.add.sprite(0, 0, 'background');
+        this.cursors = this.game.input.keyboard.createCursorKeys();
 
-        var animalData = [
-            {key: 'chicken', text: 'CHICKEN', audio: 'chickenSound'},
-            {key: 'horse', text: 'HORSE', audio: 'horseSound'},
-            {key: 'pig', text: 'PIG', audio: 'pigSound'},
-            {key: 'sheep', text: 'SHEEP', audio: 'sheepSound'}
-        ];
+        this.game.world.setBounds(0,0,360,700);
 
-        this.animals = this.game.add.group();
-
-        var self = this;
-        var animal;
-
-        animalData.forEach(function(element){
-            animal = self.animals.create(-1000 , self.game.world.centerY, element.key);
-            animal.customParams = {text: element.text, sound: self.game.add.audio(element.audio)};
-            animal.anchor.setTo(0.5);
-
-            animal.animations.add('animate', [0, 1, 2, 1, 0, 1], 3, false);
-            
-            animal.inputEnabled = true;
-            animal.input.pixelPerfectClick = true;
-            animal.events.onInputDown.add(self.animateAnimal, self);
-        });
-
-        this.currentAnimal = this.animals.next();
-        this.currentAnimal.position.set(this.game.world.centerX, this.game.world.centerY);
- 
-
-        this.showText(this.currentAnimal);
-        
-        // left arrow
-        this.leftArrow = this.game.add.sprite(60, this.game.world.centerY, 'arrow');
-        this.leftArrow.anchor.setTo(0.5);
-        this.leftArrow.scale.x = -1;
-        this.leftArrow.customParams = {direction: -1};
-        // left arrow allow user input
-        this.leftArrow.inputEnabled = true;
-        this.leftArrow.input.pixelPerfectClick = true;
-        this.leftArrow.events.onInputDown.add(this.switchAnimal, this);
-
-        // right arrow
-        this.rightArrow = this.game.add.sprite(580, this.game.world.centerY, 'arrow');
-        this.rightArrow.anchor.setTo(0.5);
-        this.rightArrow.customParams = {direction: 1};
-        // right arrow allow user input
-        this.rightArrow.inputEnabled = true;
-        this.rightArrow.input.pixelPerfectClick = true;
-        this.rightArrow.events.onInputDown.add(this.switchAnimal, this);
- 
-    },
-
-    update: function(){
-        // this.sheep.angle += 0.5;
-        
-    },
-    switchAnimal: function(sprite, event){
-        if(this.isMoving){
-            return false;
-           }
-        
-        this.isMoving = true;
-
-        this.animalText.visible = false;
-        var newAnimal, endX;
-
-        if(sprite.customParams.direction > 0){
-            newAnimal = this.animals.next();
-            newAnimal.x = -newAnimal.width/2;
-            endX = 640 + this.currentAnimal.width/2; 
-        } else {
-            newAnimal = this.animals.previous();
-            newAnimal.x = 640 + newAnimal.width/2;
-            endX = -this.currentAnimal.width/2;
-        }
-        
-        var newAnimalMovement = this.game.add.tween(newAnimal);
-        newAnimalMovement.to({x: this.game.world.centerX}, 1000);
-        newAnimalMovement.onComplete.add(function(){
-            this.isMoving = false;
-            this.showText(newAnimal);
-        }, this);
-        newAnimalMovement.start();
-        
-        var currentAnimalMovement = this.game.add.tween(this.currentAnimal);
-        currentAnimalMovement.to({x: endX}, 1000);
-        currentAnimalMovement.start();
-        
-        this.currentAnimal = newAnimal;
-    },
-    showText: function(animal){
-        if(!this.animalText){
-            var style = {
-                font: 'bold 30pt Arial',
-                fill:'#D0171B',
-                align: 'center'
-            }
-            this.animalText = this.game.add.text(this.game.width/2, this.game.height * 0.85, '', style);
-            this.animalText.anchor.setTo(0.5);
-           }
-        this.animalText.setText(animal.customParams.text);
-        this.animalText.visible = true;
+        this.RUNNING_SPEED = 180;
+        this.JUMPING_SPEED = 550;
     },
     
-    animateAnimal: function(sprite, event){
-        sprite.play('animate');
-        sprite.customParams.sound.play();
+    // load the game assets before the game staarts 
+    preload: function(){
+        this.load.image('ground', 'assets/images/ground.png');    
+        this.load.image('platform', 'assets/images/platform.png');    
+        this.load.image('goal', 'assets/images/gorilla3.png');    
+        this.load.image('arrowButton', 'assets/images/arrowButton.png');    
+        this.load.image('actionButton', 'assets/images/actionButton.png');    
+        this.load.image('barrel', 'assets/images/barrel.png');    
+
+        this.load.spritesheet('player', 'assets/images/player_spritesheet.png', 28, 30, 5, 1, 1);    
+        this.load.spritesheet('fire', 'assets/images/fire_spritesheet.png', 20, 21, 2, 1, 1);      
+
+        // load JSON file in preload
+        this.load.text('level', 'assets/data/level.json');
+        
+    },
+
+    // executed after everythin is loaded
+    create: function(){
+        this.ground = this.add.sprite(0, 638, 'ground');
+        this.game.physics.arcade.enable(this.ground);
+        this.ground.body.allowGravity = false;
+        this.ground.body.immovable = true;
+
+        // get text content
+        // parse data
+        this.levelData = JSON.parse(this.game.cache.getText('level'));
+ 
+
+        this.platforms = this.add.group();
+        this.platforms.enableBody = true;
+
+        this.levelData.platformData.forEach(function(element){
+          this.platforms.create(element.x, element.y, 'platform');
+        }, this);
+
+        this.platforms.setAll('body.immovable', true);
+        this.platforms.setAll('body.allowGravity', false);
+
+        
+        // fires
+        this.fires = this.add.group();
+        this.fires.enableBody = true;
+        
+        var fire;
+        this.levelData.fireData.forEach(function(element){
+            fire = this.fires.create(element.x, element.y, 'fire');
+            fire.animations.add('fire', [0, 1], 4, true);
+            fire.play('fire');
+        }, this);
+        
+        this.fires.setAll('body.allowGravity', false);
+        
+        // goal
+        this.goal = this.add.sprite(this.levelData.goal.x, this.levelData.goal.y, 'goal');
+        this.game.physics.arcade.enable(this.goal);
+        this.goal.body.allowGravity = false;
+        
+        //create player
+        this.player = this.add.sprite(this.levelData.playerStart.x, this.levelData.playerStart.y, 'player', 3);
+        this.player.anchor.setTo(0.5);
+        this.player.animations.add('walking', [0, 1, 2, 1], 6, true);
+        this.game.physics.arcade.enable(this.player);
+        this.player.customParams = {};
+        this.player.body.collideWorldBounds = true;
+
+        this.game.camera.follow(this.player);
+
+        this.createOnscreenControls();  
+        
+        this.barrels = this.add.group();
+        this.barrels.enableBody = true; 
+        
+        this.createBarrel();
+        this.barrelCreator = this.game.time.events.loop(Phaser.Timer.SECOND * this.levelData.barrelFrequency, this.createBarrel, this);
+        
+    },
+
+    update: function(){ 
+        this.game.physics.arcade.collide(this.player, this.ground);
+        this.game.physics.arcade.collide(this.player, this.platforms);
+        
+        this.game.physics.arcade.collide(this.barrels, this.ground);
+        this.game.physics.arcade.collide(this.barrels, this.platforms);
+        
+        this.game.physics.arcade.overlap(this.player, this.fires, this.killPlayer);
+        this.game.physics.arcade.overlap(this.player, this.barrels, this.killPlayer);
+        this.game.physics.arcade.overlap(this.player, this.goal, this.win);
+
+        this.player.body.velocity.x = 0;
+
+        if(this.cursors.left.isDown || this.player.customParams.isMovingLeft) {
+          this.player.body.velocity.x = -this.RUNNING_SPEED;
+            this.player.scale.setTo(1, 1);
+          this.player.play('walking');
+        }
+        else if(this.cursors.right.isDown || this.player.customParams.isMovingRight) {
+          this.player.body.velocity.x = this.RUNNING_SPEED;
+          this.player.scale.setTo(-1, 1);
+            this.player.play('walking');
+        } 
+        else {
+            this.player.animations.stop();
+            this.player.frame = 3;
+        }
+
+        if((this.cursors.up.isDown || this.player.customParams.mustJump) && this.player.body.touching.down) {
+          this.player.body.velocity.y = -this.JUMPING_SPEED;
+          this.player.customParams.mustJump = false;
+        }
+        
+        this.barrels.forEach(function(element){
+            if(element.x < 10 && element.y > 600){
+                element.kill();
+               }
+        }, this);
+    },
+    landed: function(player, ground){ 
+    },
+    createOnscreenControls: function(){
+        this.leftArrow = this.add.button(20, 535, 'arrowButton');
+        this.rightArrow = this.add.button(110, 535, 'arrowButton');
+        this.actionButton = this.add.button(280, 535, 'actionButton');
+
+        this.leftArrow.alpha = 0.5;
+        this.rightArrow.alpha = 0.5;
+        this.actionButton.alpha = 0.5;
+
+        this.leftArrow.fixedToCamera = true;
+        this.rightArrow.fixedToCamera = true;
+        this.actionButton.fixedToCamera = true;
+
+        this.actionButton.events.onInputDown.add(function(){
+          this.player.customParams.mustJump = true;
+        }, this);
+
+        this.actionButton.events.onInputUp.add(function(){
+          this.player.customParams.mustJump = false;
+        }, this);
+
+        //left
+        this.leftArrow.events.onInputDown.add(function(){
+          this.player.customParams.isMovingLeft = true;
+        }, this);
+
+        this.leftArrow.events.onInputUp.add(function(){
+          this.player.customParams.isMovingLeft = false;
+        }, this);
+
+        this.leftArrow.events.onInputOver.add(function(){
+          this.player.customParams.isMovingLeft = true;
+        }, this);
+
+        this.leftArrow.events.onInputOut.add(function(){
+          this.player.customParams.isMovingLeft = false;
+        }, this);
+
+        //right
+        this.rightArrow.events.onInputDown.add(function(){
+          this.player.customParams.isMovingRight = true;
+        }, this);
+
+        this.rightArrow.events.onInputUp.add(function(){
+          this.player.customParams.isMovingRight = false;
+        }, this);
+
+        this.rightArrow.events.onInputOver.add(function(){
+          this.player.customParams.isMovingRight = true;
+        }, this);
+
+        this.rightArrow.events.onInputOut.add(function(){
+          this.player.customParams.isMovingRight = false;
+        }, this);
+      },
+    killPlayer: function(player, fire){
+        console.log('auch');
+        game.state.start('GameState');
+    },
+    win: function(player, goal){
+        alert('you win');
+        game.state.start('GameState');
+    },
+    createBarrel: function(){
+        // give me the first dead sprite
+        var barrel = this.barrels.getFirstExists(false);
+        if(!barrel){
+            barrel = this.barrels.create(0, 0, 'barrel');
+           }
+        barrel.body.collideWorldBounds = true;
+        barrel.body.bounce.set(1, 0);
+        
+        barrel.reset(this.levelData.goal.x, this.levelData.goal.y);
+        barrel.body.velocity.x = this.levelData.barrelSpeed;
     }
+    
 };
 
-var game = new Phaser.Game(640, 360, Phaser.CANVAS);
+var game = new Phaser.Game(360, 592, Phaser.CANVAS);
 game.state.add('GameState', GameState);
 game.state.start('GameState');
